@@ -13,6 +13,10 @@
   `daw-mcp`'s Java jar + bundled JS), so a release is just a `VERSION`
   file, a matching `version=` on the `MCPServer` instance, and a git tag —
   anyone using it clones the repo and follows the README's setup steps.
+- **`midi_to_notes.py`** — MIDI file → JSON note array in daw-mcp's
+  `batch_set_notes` format (`[x, y, velocity, duration]`, beat-position
+  units matching music21's `offset`/`quarterLength` exactly), wired into
+  `mcp_server.py` as a third tool (`midi_to_notes`).
 
 ## Near-term
 
@@ -33,14 +37,18 @@ point is the workflow, not the codebase:
 audio2score-mcp: transcribe_audio(song.mp3) -> song.mid
                         |
                         v
-daw-mcp: batch_set_notes(...) reads song.mid's notes into a Bitwig/Ableton clip
+audio2score-mcp: midi_to_notes(song.mid) -> song.notes.json
+                        |
+                        v
+daw-mcp: batch_set_notes(notes=<song.notes.json contents>) writes the clip
 ```
 
-No tooling exists yet to automate that hand-off (reading a `.mid` file's
-notes and translating them into `batch_set_notes`' note-array format) — for
-now it's a manual step, or something Claude does by reading one tool's
-output and calling the other. Worth a small bridge script only if this
-hand-off turns out to happen often enough to be worth automating.
+`midi_to_notes` is the bridge script: it reads a `.mid` file's notes via
+music21 and writes them out already shaped as `batch_set_notes`' ultra-lean
+`[x, y, velocity, duration]` array. Still a manual last step — Claude (or
+you) reads the `.notes.json` file and passes its contents into
+`batch_set_notes` — but the format translation itself is no longer
+hand-done.
 
 ## Explicitly out of scope
 

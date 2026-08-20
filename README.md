@@ -16,7 +16,8 @@ same two steps as tools Claude can call.
 
 - `transcribe.py` — audio file → MIDI, via Spotify's [basic-pitch](https://github.com/spotify/basic-pitch)
 - `to_score.py` — MIDI file → MusicXML, via [music21](https://www.music21.org/)
-- `mcp_server.py` — MCP server wrapping both as tools (`transcribe_audio`, `midi_to_score`)
+- `midi_to_notes.py` — MIDI file → JSON note array in daw-mcp's `batch_set_notes` format, via music21
+- `mcp_server.py` — MCP server wrapping all three as tools (`transcribe_audio`, `midi_to_score`, `midi_to_notes`)
 
 Each step is a separate, real artifact on disk — not a hidden intermediate.
 The pause between MIDI and notation is deliberate: automatic transcription
@@ -48,6 +49,9 @@ venv/Scripts/python.exe transcribe.py "C:\path\to\song.mp3"
 
 venv/Scripts/python.exe to_score.py "C:\path\to\song.mid"
 # -> C:\path\to\song.musicxml
+
+venv/Scripts/python.exe midi_to_notes.py "C:\path\to\song.mid"
+# -> C:\path\to\song.notes.json  (daw-mcp's batch_set_notes format)
 ```
 
 Output always lands next to the input, same base filename, different
@@ -61,10 +65,11 @@ fails silently.
 Registered in Claude Code's config as `audio2score` — restart Claude Code
 after a fresh install for it to appear (MCP servers load at startup).
 
-Two tools, mirroring the two scripts exactly:
+Three tools, mirroring the three scripts exactly:
 
 - `transcribe_audio(audio_path)` → returns the `.mid` path
 - `midi_to_score(midi_path)` → returns the `.musicxml` path
+- `midi_to_notes(midi_path)` → returns the `.notes.json` path (daw-mcp's `batch_set_notes` note-array format)
 
 Same behavior as the CLI underneath (same overwrite guard, same errors) —
 the MCP server is a thin wrapper, not a different implementation.
