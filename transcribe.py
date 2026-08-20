@@ -14,15 +14,18 @@ def transcribe(audio_path: pathlib.Path) -> pathlib.Path:
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
     output_dir = audio_path.parent
-    predict_and_save(
-        [str(audio_path)],
-        str(output_dir),
-        save_midi=True,
-        sonify_midi=False,
-        save_model_outputs=False,
-        save_notes=False,
-        model_or_model_path=ICASSP_2022_MODEL_PATH,
-    )
+    try:
+        predict_and_save(
+            [str(audio_path)],
+            str(output_dir),
+            save_midi=True,
+            sonify_midi=False,
+            save_model_outputs=False,
+            save_notes=False,
+            model_or_model_path=ICASSP_2022_MODEL_PATH,
+        )
+    except Exception as e:
+        raise RuntimeError(f"basic-pitch failed on {audio_path}: {type(e).__name__}: {e}") from e
 
     # predict_and_save always names its output "<stem>_basic_pitch.mid" -
     # rename to match this project's "same base filename" convention.
@@ -30,6 +33,8 @@ def transcribe(audio_path: pathlib.Path) -> pathlib.Path:
     target = output_dir / f"{audio_path.stem}.mid"
     if not generated.is_file():
         raise RuntimeError(f"basic-pitch did not produce expected output: {generated}")
+    if target.exists():
+        raise RuntimeError(f"{target} already exists; move or delete it first")
     generated.replace(target)
     return target
 

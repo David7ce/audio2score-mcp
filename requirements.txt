@@ -1,3 +1,3 @@
-basic-pitch
-music21
+basic-pitch==0.4.0
+music21==10.5.0
 setuptools==65.5.0

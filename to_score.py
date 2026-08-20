@@ -18,6 +18,8 @@ def to_score(midi_path: pathlib.Path) -> pathlib.Path:
         raise RuntimeError(f"music21 failed to parse {midi_path}: {e}") from e
 
     target = midi_path.with_suffix(".musicxml")
+    if target.exists():
+        raise RuntimeError(f"{target} already exists; move or delete it first")
     score.write("musicxml", fp=str(target))
     return target
 
