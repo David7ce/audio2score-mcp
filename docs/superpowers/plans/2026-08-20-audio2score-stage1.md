@@ -6,18 +6,21 @@
 
 **Architecture:** Two independent, single-purpose scripts with no shared module, no server, no daemon. Each takes one file path argument, writes one output file next to the input, and exits. They are chained manually by running one after the other — the pause between them is intentional (see spec).
 
-**Tech Stack:** Python (3.12, see constraint below), `basic-pitch` (audio→MIDI), `music21` (MIDI→MusicXML), `uv` for venv/dependency management (already installed on this machine at `/c/Users/d7/.local/bin/uv`).
+**Tech Stack:** Python (3.11, see constraint below), `basic-pitch` (audio→MIDI), `music21` (MIDI→MusicXML), `uv` for venv/dependency management (already installed on this machine at `/c/Users/d7/.local/bin/uv`).
 
 **Spec:** `docs/superpowers/specs/2026-08-20-audio2score-design.md`
 
 ## Global Constraints
 
-- **Python 3.12, not 3.13.** `basic-pitch` (PyPI, checked 2026-08-20) declares support only through Python 3.11 and has no `requires_python` floor, so pip won't block a newer interpreter — but this machine's default `python` on PATH is 3.13, which is untested by basic-pitch's own dependency (onnxruntime) and risks missing wheels. A `uv`-managed Python 3.12.13 is already present on this machine (`py -0p` confirmed it), which is the closer, safer match. Use it for this project's venv.
+- **Python 3.11, not 3.12 or 3.13.** `basic-pitch` (PyPI, checked 2026-08-20) declares support only through Python 3.11. This machine's default `python` on PATH is 3.13; a `uv`-managed Python 3.12.13 is also present. Both were tried and rejected: `uv venv --python 3.12` fails to resolve — basic-pitch pulls in TensorFlow, whose wheels for the version it needs (2.15.0) only exist for `cp39`/`cp310`/`cp311`, not `cp312`. (This corrects the spec/plan's original assumption that Windows uses an ONNX backend by default — in practice, on this machine, `uv`'s resolver pulled TensorFlow in regardless.) Python 3.11 was verified during Task 1 implementation: `uv venv --python 3.11` resolves cleanly and `import basic_pitch; import music21` succeeds. Use 3.11 for this project's venv — `uv` will download it on demand if not already present.
 - **No MCP server.** Plain CLI scripts only, run manually. (Spec Non-goals.)
 - **No automated test suite.** Both scripts are thin wrappers around external libraries with no business logic of their own to unit-test; verification is a real run against real audio, per spec's Testing section. Each task's "test" steps below are real invocations against real files, not pytest.
 - **Outputs are written next to the input file**, same directory, same base filename, different extension. No output-folder config, no CLI flag for it.
 - **Fail loudly, no silent fallback.** Missing input file or a library failure must print a clear error to stderr and exit non-zero — never swallow the error and produce a partial or empty output file.
 - **basic-pitch's `predict_and_save` writes `<stem>_basic_pitch.mid`, not `<stem>.mid`** — `transcribe.py` must rename the file after generation to match the spec's "same base filename" convention.
+- **`predict_and_save`'s model-path kwarg is `model_or_model_path`, not `model_path`** in basic-pitch 0.4.0 (the version Task 1 actually installs) — corrected during Task 2 implementation and verified against a real transcription run.
+- **`requirements.txt` pins exact versions (`basic-pitch==0.4.0`, `music21==10.5.0`, `setuptools==65.5.0`)**, not floating requirements. Floating versions already broke this project once (the `model_path` rename above); pinning is the cheapest available substitute for the automated test suite the spec deliberately declines.
+- **The venv is ~2GB.** basic-pitch pulls in full TensorFlow (not a lighter ONNX backend) on this machine — expected, not a sign something went wrong.
 
 ---
 
@@ -25,7 +28,7 @@
 
 ```
 audio2score-mcp/
-├── venv/                   # uv-managed venv, Python 3.12, gitignored
+├── venv/                   # uv-managed venv, Python 3.11, gitignored
 ├── requirements.txt        # basic-pitch, music21
 ├── .gitignore               # venv/, __pycache__/, *.mid, *.musicxml (generated artifacts)
 ├── transcribe.py            # audio -> MIDI
@@ -49,9 +52,12 @@ Both scripts are standalone: no shared `lib/` module. At this size (one function
 - [ ] **Step 1: Write `requirements.txt`**
 
 ```
-basic-pitch
-music21
+basic-pitch==0.4.0
+music21==10.5.0
+setuptools==65.5.0
 ```
+
+(Versions pinned, not left floating: this project's only verification method is "one real run against real audio" — pinning is the cheapest available substitute for the automated test suite the spec deliberately declines. `setuptools==65.5.0` fixes a resampy/pkg_resources import failure that newer setuptools versions trigger; found and verified during Task 2's implementation, see Global Constraints.)
 
 - [ ] **Step 2: Write `.gitignore`**
 
@@ -65,13 +71,13 @@ __pycache__/
 
 (Generated MIDI/MusicXML artifacts are excluded because Stage 1 writes them next to arbitrary input files, which may be outside this repo entirely — e.g. `C:\Users\d7\Downloads\`. The pattern here only matters for any test artifacts that happen to land inside the repo itself.)
 
-- [ ] **Step 3: Create the venv with Python 3.12 via uv**
+- [ ] **Step 3: Create the venv with Python 3.11 via uv**
 
 Run (from `audio2score-mcp/`):
 ```bash
-uv venv --python 3.12 venv
+uv venv --python 3.11 venv
 ```
-Expected: creates `venv/` and prints something like `Using CPython 3.12.13`.
+Expected: creates `venv/` and prints something like `Using CPython 3.11.x`. (`uv` downloads 3.11 on demand if it isn't already installed.)
 
 - [ ] **Step 4: Install dependencies into the venv**
 
@@ -135,7 +141,7 @@ def transcribe(audio_path: pathlib.Path) -> pathlib.Path:
         sonify_midi=False,
         save_model_outputs=False,
         save_notes=False,
-        model_path=ICASSP_2022_MODEL_PATH,
+        model_or_model_path=ICASSP_2022_MODEL_PATH,
     )
 
     # predict_and_save always names its output "<stem>_basic_pitch.mid" -
