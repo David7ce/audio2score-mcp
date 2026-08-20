@@ -4,3 +4,8 @@ __pycache__/
 *.mid
 *.musicxml
 *.notes.json
+
+# workspace/ is the recommended input/output folder (see README's "Where
+# files go") - nothing in it should ever be committed, inputs included.
+workspace/*
+!workspace/.gitkeep

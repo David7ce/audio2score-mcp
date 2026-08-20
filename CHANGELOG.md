@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.5 — 2026-08-20
+
+- Added `workspace/` as the recommended input/output folder, replacing the
+  ad-hoc use of `~/Downloads` from the previous session's testing -
+  repo-local, gitignored (`workspace/*` with `.gitkeep` kept), survives
+  a fresh clone without ever risking a committed audio file. Updated
+  README.md's "Where files go" section and moved the existing test
+  artifacts (`o_tannenbaum.*`, `alle_meine_entchen.*`) there.
+
 ## v1.1.4 — 2026-08-20
 
 - Added a "Where files go" section to README.md, up front before Setup -

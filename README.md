@@ -26,15 +26,17 @@ becomes a score.
 
 ## Where files go
 
-There's no fixed input folder - point `audio_path`/`midi_path` at any file,
-anywhere (e.g. `~/Downloads/song.mp3`). Every output lands **next to that
-input file**, same base name, different extension:
+Recommended: drop input files in **`workspace/`** (repo-local, gitignored -
+see `.gitignore` - nothing placed here ever gets committed, inputs
+included). There's no hard requirement though - `audio_path`/`midi_path`
+can point anywhere. Every output lands **next to its input file**, same
+base name, different extension:
 
 ```
-~/Downloads/song.mp3          <- you put this here (any format basic-pitch/librosa reads: mp3, wav, ogg, flac...)
-~/Downloads/song.mid          <- transcribe_audio writes this
-~/Downloads/song.musicxml     <- midi_to_score writes this (open in MuseScore/Guitar Pro/Sibelius/Finale/Dorico)
-~/Downloads/song.notes.json   <- midi_to_notes writes this (feed into daw-mcp's batch_set_notes)
+workspace/song.mp3          <- you put this here (any format basic-pitch/librosa reads: mp3, wav, ogg, flac...)
+workspace/song.mid          <- transcribe_audio writes this
+workspace/song.musicxml     <- midi_to_score writes this (open in MuseScore/Guitar Pro/Sibelius/Finale/Dorico)
+workspace/song.notes.json   <- midi_to_notes writes this (feed into daw-mcp's batch_set_notes)
 ```
 
 To view: open the `.mid` or `.musicxml` directly in whatever notation app
