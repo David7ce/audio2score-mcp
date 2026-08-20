@@ -36,8 +36,15 @@ exact.
 
 ## Explicitly out of scope
 
-- No reverse direction (score/MIDI → audio) — needs a synth/soundfont,
-  not built
+- Score/MIDI → audio — needs a synth/soundfont; MuseScore Studio (already
+  installed) does this via manual export instead. Tried scripting
+  MuseScore's CLI for this and it's unreliable outside an interactive
+  desktop session (crashes or hangs) - see CLAUDE.md and README's
+  "Audio and PDF export" for the full finding. Not revisiting unless that
+  changes.
+- PDF (sheet music image) → anything — needs OMR, an unrelated computer-
+  vision problem. Audiveris (already installed) is the right tool; point
+  to it, don't wrap it.
 - No stem separation, no multi-instrument splitting
 - Doesn't drive MuseScore/Guitar Pro/Sibelius directly — those already have
   their own separate MCP servers; this project only produces the

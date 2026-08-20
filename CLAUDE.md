@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Audio → MIDI → MusicXML pipeline, plus a MIDI → daw-mcp note-array bridge.
-Three independent conversion steps, each a real file on disk, plus an MCP
-server wrapping all three as tools. No reverse direction, no stem
-separation, no notation-app driving — see README.md's "What this doesn't
-do" and ROADMAP.md's "Explicitly out of scope" for the full boundary list
+Audio → MIDI ⇄ MusicXML pipeline, plus a MIDI → daw-mcp note-array bridge.
+Four independent conversion steps, each a real file on disk, plus an MCP
+server wrapping all four as tools. No audio *output* direction
+(score/MIDI → audio), no PDF input (needs OMR), no stem separation, no
+notation-app driving — see README.md's "What this doesn't do" /
+"Audio and PDF export" and ROADMAP.md's "Explicitly out of scope" for the
+full boundary list, and what to point to instead (MuseScore, Audiveris),
 before proposing that kind of feature.
 
 ## Setup
@@ -31,9 +33,10 @@ import `basic-pitch` needs.
 ## Commands
 
 ```bash
-venv/Scripts/python.exe transcribe.py "path\to\song.mp3"     # -> song.mid
-venv/Scripts/python.exe to_score.py "path\to\song.mid"       # -> song.musicxml
-venv/Scripts/python.exe midi_to_notes.py "path\to\song.mid"  # -> song.notes.json
+venv/Scripts/python.exe transcribe.py "path\to\song.mp3"        # -> song.mid
+venv/Scripts/python.exe to_score.py "path\to\song.mid"          # -> song.musicxml
+venv/Scripts/python.exe score_to_midi.py "path\to\song.musicxml" # -> song.mid
+venv/Scripts/python.exe midi_to_notes.py "path\to\song.mid"     # -> song.notes.json
 ```
 
 No lint/build/test commands — this project has none by design. Verification
@@ -41,24 +44,29 @@ is always a real run against real audio (see "Testing" below).
 
 ## Architecture
 
-Four files, each a thin layer over one library:
+Five files, each a thin layer over one library:
 
 - `transcribe.py` — `transcribe(audio_path)`: calls basic-pitch's
   `predict_and_save`, then renames its fixed `<stem>_basic_pitch.mid` output
   to `<stem>.mid` to match this project's naming convention.
 - `to_score.py` — `to_score(midi_path)`: calls music21's `converter.parse`
   then `.write("musicxml")`.
+- `score_to_midi.py` — `score_to_midi(score_path)`: the reverse of
+  `to_score.py` - `converter.parse` then `.write("midi")`. Symbolic-to-
+  symbolic, pure music21, no external process - unlike the audio/PDF
+  export directions below, this one stays inside this project because it
+  doesn't need a renderer or synth.
 - `midi_to_notes.py` — `midi_to_notes(midi_path)`: calls music21's
   `converter.parse`, flattens all parts/chords into one note list, and
   writes `[x, y, velocity, duration]` JSON — `x`/`duration` are music21
   `offset`/`quarterLength` (beats), which is exactly the unit daw-mcp's
   `batch_set_notes` expects, so no unit conversion is needed.
-- `mcp_server.py` — imports all three functions directly and exposes them as
-  MCP tools (`transcribe_audio`, `midi_to_score`, `midi_to_notes`) with no
-  added logic. Registered in Claude Code's config under the name
-  `audio2score`.
+- `mcp_server.py` — imports all four functions directly and exposes them as
+  MCP tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`,
+  `midi_to_notes`) with no added logic. Registered in Claude Code's config
+  under the name `audio2score`.
 
-All three conversion functions share the same shape: validate input exists,
+All four conversion functions share the same shape: validate input exists,
 call the library, refuse to overwrite an existing output file, return the
 output `pathlib.Path`. `main()` in each script is just an argparse wrapper
 that catches `(FileNotFoundError, RuntimeError)` and prints to stderr with
@@ -86,6 +94,19 @@ it correctly. See README.md's "What this doesn't do" for the full writeup.
 Don't try to patch this by injecting `<voice>` tags post-write - that's
 real logic this project deliberately doesn't carry (see "Keep new
 tools/scripts consistent with this shape" above).
+
+**Don't build a MuseScore-CLI-based tool in this repo.** Tested directly:
+`MuseScore4.exe -o out.wav in.mid` crashes (fails a network call, `503 Host
+requires authentication`) without `QT_QPA_PLATFORM=offscreen`, and hangs
+indefinitely with it set. It launches a full GUI session (D3D11 context,
+WASAPI, soundfont load) for a plain export - not a lightweight headless
+converter, and not reliably scriptable from an agent/CI context on this
+machine. Audio/PDF export via MuseScore stays a manual, documented step
+(README's "Audio and PDF export") - don't re-attempt automating it without
+new evidence it's fixed. Audiveris (OMR, `C:\Program Files\Audiveris\`),
+by contrast, has a genuine `-batch` CLI that responds cleanly - confirmed
+via `-help` - but building an OMR pipeline is still out of this project's
+scope; point users to it, don't wrap it.
 
 ## Testing
 

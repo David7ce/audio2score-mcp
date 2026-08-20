@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2.0 — 2026-08-20
+
+- **Added `score_to_midi.py`**: MusicXML (or other music21-readable score)
+  → MIDI, the reverse of `to_score.py`. Pure music21 `parse()`/`write()`,
+  same shape as every other script here. Wired into `mcp_server.py` as a
+  fourth tool, `score_to_midi`. Verified round-trip on a synthetic 4-note
+  fixture (C4-D4-E4-F4): MusicXML written, converted back to MIDI,
+  re-parsed - exact pitches and durations preserved.
+- **Decided against building automated audio-export or PDF-OMR tools** in
+  this project, after actually attempting the audio-export one first:
+  scripting MuseScore Studio's CLI (`-o out.wav`/`-o out.pdf`) is
+  unreliable outside an interactive desktop session - without
+  `QT_QPA_PLATFORM=offscreen` it crashed on a failed network call (`503
+  Host requires authentication`); with it set, it hung indefinitely and
+  had to be killed. MuseScore 4 spins up a full GUI session (D3D11
+  context, WASAPI audio, soundfont loading) even for a plain export.
+  Documented both directions instead, pointing at already-installed
+  software for manual use: MuseScore Studio's own export menu for
+  MIDI/MusicXML → audio or PDF, and Audiveris (confirmed present, and its
+  `-batch -export` CLI genuinely works cleanly, unlike MuseScore's) for
+  PDF → MusicXML via OMR. See README.md's new "Audio and PDF export"
+  section and CLAUDE.md for the full writeup and the do-not-re-attempt
+  note.
+
 ## v1.1.5 — 2026-08-20
 
 - Added `workspace/` as the recommended input/output folder, replacing the

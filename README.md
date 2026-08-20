@@ -16,8 +16,9 @@ same two steps as tools Claude can call.
 
 - `transcribe.py` — audio file → MIDI, via Spotify's [basic-pitch](https://github.com/spotify/basic-pitch)
 - `to_score.py` — MIDI file → MusicXML, via [music21](https://www.music21.org/)
+- `score_to_midi.py` — MusicXML (or other music21-readable score) file → MIDI, via music21 (the reverse of `to_score.py`)
 - `midi_to_notes.py` — MIDI file → JSON note array in daw-mcp's `batch_set_notes` format, via music21
-- `mcp_server.py` — MCP server wrapping all three as tools (`transcribe_audio`, `midi_to_score`, `midi_to_notes`)
+- `mcp_server.py` — MCP server wrapping all four as tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`, `midi_to_notes`)
 
 Each step is a separate, real artifact on disk — not a hidden intermediate.
 The pause between MIDI and notation is deliberate: automatic transcription
@@ -70,12 +71,15 @@ venv/Scripts/python.exe transcribe.py "C:\path\to\song.mp3"
 venv/Scripts/python.exe to_score.py "C:\path\to\song.mid"
 # -> C:\path\to\song.musicxml
 
+venv/Scripts/python.exe score_to_midi.py "C:\path\to\song.musicxml"
+# -> C:\path\to\song.mid  (the reverse direction - e.g. a downloaded/hand-written score)
+
 venv/Scripts/python.exe midi_to_notes.py "C:\path\to\song.mid"
 # -> C:\path\to\song.notes.json  (daw-mcp's batch_set_notes format)
 ```
 
 Output always lands next to the input, same base filename, different
-extension. Both scripts **refuse to overwrite an existing output file** —
+extension. All four scripts **refuse to overwrite an existing output file** —
 delete or move it first if you want to re-run. Errors (missing input, a
 library failure) print a clear message to stderr and exit non-zero; nothing
 fails silently.
@@ -137,10 +141,11 @@ in one measure, not a second bug).
 Registered in Claude Code's config as `audio2score` — restart Claude Code
 after a fresh install for it to appear (MCP servers load at startup).
 
-Three tools, mirroring the three scripts exactly:
+Four tools, mirroring the four scripts exactly:
 
 - `transcribe_audio(audio_path)` → returns the `.mid` path
 - `midi_to_score(midi_path)` → returns the `.musicxml` path
+- `score_to_midi(score_path)` → returns the `.mid` path (reverse of `midi_to_score`)
 - `midi_to_notes(midi_path)` → returns the `.notes.json` path (daw-mcp's `batch_set_notes` note-array format)
 
 Same behavior as the CLI underneath (same overwrite guard, same errors) —
@@ -169,10 +174,55 @@ paths won't resolve:
 
 ## What this doesn't do
 
-- No reverse direction yet (score/MIDI → audio) — MIDI→audio needs a synth/soundfont, not built
+- No score/MIDI → audio direction — needs a synth/soundfont, not this
+  project's job (see "Audio and PDF export" below for how to do it with
+  software you likely already have)
+- No PDF input (sheet-music image → notes) — needs OMR (Optical Music
+  Recognition), a different, unrelated ML problem from anything here (see
+  below)
 - No stem separation or multi-instrument splitting
 - Doesn't open or drive MuseScore/Guitar Pro/Sibelius — it produces `.musicxml`, you open it yourself
 - No automated test suite by design — verification is always a real run against real audio
+
+## Audio and PDF export (manual - not automated by this project)
+
+Two directions this project deliberately doesn't wrap in a script, with
+what to use instead. Both are things **other, already-capable software
+does better** than a thin Python wrapper could - see "What's here" above
+for why every tool in this project stays a two-line parse+write call.
+
+**MIDI/MusicXML → audio** (hear the score, not just read it): open the
+`.mid`/`.musicxml` in **MuseScore Studio** (or any notation app) and use
+its own audio export (File → Export → Wav/MP3/Ogg/Flac) - MuseScore ships
+a built-in synth and soundfont (`MS Basic.sf3`) for exactly this. A CLI
+form exists in principle (`MuseScore4.exe -o out.wav in.mid`) but **don't
+try to script it** - tested in this repo's own automation and it's
+unreliable outside an interactive desktop session: without
+`QT_QPA_PLATFORM=offscreen` it crashed after a failed network call
+(`503 Host requires authentication`, likely a telemetry check); with it
+set, it hung indefinitely. MuseScore 4 launches a full GUI session (D3D11
+graphics context, WASAPI audio driver, soundfont loading, network calls)
+even for a plain export, not a lightweight headless converter. Manual
+export in the GUI works fine - just don't expect to automate it from a
+script or CI job on this machine.
+
+**PDF (sheet music image) → MIDI/MusicXML**: this needs OMR, a completely
+different technology from audio transcription (basic-pitch) or symbolic
+notation conversion (music21) - it's computer vision on a score image, not
+audio or MIDI processing. Not something to bolt onto this project. If you
+have **Audiveris** installed (open-source OMR, confirmed present on this
+machine at `C:\Program Files\Audiveris\Audiveris.exe`), its CLI is
+genuinely scriptable, unlike MuseScore's:
+
+```bash
+Audiveris.exe -batch -export -output "<output-folder>" "<input>.pdf"
+```
+
+`-batch` skips the GUI, `-export` writes `.mxl` (compressed MusicXML) into
+the output folder. From there, `score_to_midi.py` (this project) can take
+that `.mxl` straight to MIDI, continuing the same pipeline. OMR accuracy on
+real scanned sheet music varies a lot by source quality - treat its output
+with at least as much suspicion as basic-pitch's audio transcription.
 
 **Heavily polyphonic transcriptions can produce a `.musicxml` that MuseScore
 Studio refuses to open, calling it "corrupted."** Root cause: music21's own
