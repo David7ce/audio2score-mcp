@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.1.2 — 2026-08-20
+
+- Added a worked example to `README.md`: a real run of all three scripts
+  against a synthetic C-major-arpeggio WAV, actual terminal output and
+  actual `.notes.json` contents included, not paraphrased. Caught a real
+  transcription artifact in the process (worth documenting, not a bug) -
+  basic-pitch split the decaying final note into two tied notes instead of
+  one, which is exactly the "check the MIDI before trusting the score"
+  lossiness the README already warned about, now shown rather than just
+  asserted.
+
 ## v1.1.1 — 2026-08-20
 
 - **Fixed a real crash in `transcribe.py`**: basic-pitch's `predict_and_save`

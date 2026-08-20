@@ -60,6 +60,58 @@ delete or move it first if you want to re-run. Errors (missing input, a
 library failure) print a clear message to stderr and exit non-zero; nothing
 fails silently.
 
+## Worked example
+
+A real run, not a hypothetical one. Input: a synthetic mono WAV, a C major
+arpeggio (C4-E4-G4-C5, quarter notes with a short decaying envelope so
+onsets are clean) - "real audio" in the sense this project cares about
+(an actual waveform on disk, not hand-typed MIDI), just synthesized instead
+of recorded, so the transcript is reproducible without a copyrighted file
+lying around in a public repo.
+
+```
+$ venv/Scripts/python.exe transcribe.py c_major_arpeggio.wav
+WARNING:root:Coremltools is not installed. ...
+WARNING:root:tflite-runtime is not installed. ...
+WARNING:root:onnxruntime is not installed. ...
+Wrote c_major_arpeggio.mid
+
+$ venv/Scripts/python.exe to_score.py c_major_arpeggio.mid
+Wrote c_major_arpeggio.musicxml
+
+$ venv/Scripts/python.exe midi_to_notes.py c_major_arpeggio.mid
+Wrote c_major_arpeggio.notes.json
+```
+
+The three `WARNING:root` lines are basic-pitch noting that optional
+backends (CoreML, TFLite, ONNX) aren't installed - harmless, TensorFlow is
+the backend actually used, and this is exactly what `transcribe.py` v1.1.1
+now correctly hides *without* corrupting `mcp_server.py`'s stdout stream
+(see CHANGELOG.md) - it only lands on the terminal, not the MCP protocol
+channel.
+
+`c_major_arpeggio.notes.json`, the daw-mcp-ready output:
+
+```json
+[[0.0, 60, 83, 1.0], [1.25, 64, 80, 1.0], [2.3333, 67, 80, 1.0], [3.5, 72, 78, 0.5], [4.0, 72, 78, 0.5]]
+```
+
+Four notes went in (C4, E4, G4, C5); basic-pitch correctly detected pitch
+and velocity for all four (60/64/67/72, matching the arpeggio exactly) but
+split the last note (C5) into two consecutive entries instead of one -
+the decaying envelope's tail apparently read as a second onset. This is
+the automatic-transcription lossiness the "What's here" section above
+warns about, caught in the wild on the very first note that had a
+naturalistic (non-flat) volume shape: check the `.mid` before trusting the
+`.musicxml`/`.notes.json` blindly, especially around sustained or decaying
+notes.
+
+`c_major_arpeggio.musicxml` opens cleanly in any notation app (verified
+well-formed: correct MusicXML 4.0 DOCTYPE, `<step>`/`<octave>` pitches for
+C4/E4/G4/G4/C5/C5/C5 - the split C5 shows up as tied notes across a
+measure boundary, which is standard MusicXML for a note that doesn't fit
+in one measure, not a second bug).
+
 ## Usage: MCP server
 
 Registered in Claude Code's config as `audio2score` — restart Claude Code

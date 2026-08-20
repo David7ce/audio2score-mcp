@@ -5,10 +5,7 @@ forward-looking only.
 
 ## Near-term
 
-- **README could use a worked example** — a full transcript of running
-  both scripts (or both tools) against a real file, output included, so a
-  new reader can tell what "working" looks like without running it
-  themselves first.
+Nothing open right now.
 
 ## Workflow bridge to daw-mcp
 
