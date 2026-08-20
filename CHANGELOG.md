@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.4 — 2026-08-20
+
+- Added a "Where files go" section to README.md, up front before Setup -
+  there was no fixed input/output convention documented in one place
+  (it was implied by the CLI examples but never stated plainly): any path
+  works for input, output always lands next to it, view the `.musicxml`
+  by opening it directly in a notation app since nothing here launches one.
+
 ## v1.1.3 — 2026-08-20
 
 - **Root-caused and documented a real user-reported bug**: MuseScore

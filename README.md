@@ -24,6 +24,24 @@ The pause between MIDI and notation is deliberate: automatic transcription
 is lossy, so the raw MIDI is worth a look (or a manual fix) before it
 becomes a score.
 
+## Where files go
+
+There's no fixed input folder - point `audio_path`/`midi_path` at any file,
+anywhere (e.g. `~/Downloads/song.mp3`). Every output lands **next to that
+input file**, same base name, different extension:
+
+```
+~/Downloads/song.mp3          <- you put this here (any format basic-pitch/librosa reads: mp3, wav, ogg, flac...)
+~/Downloads/song.mid          <- transcribe_audio writes this
+~/Downloads/song.musicxml     <- midi_to_score writes this (open in MuseScore/Guitar Pro/Sibelius/Finale/Dorico)
+~/Downloads/song.notes.json   <- midi_to_notes writes this (feed into daw-mcp's batch_set_notes)
+```
+
+To view: open the `.mid` or `.musicxml` directly in whatever notation app
+you have - nothing here launches one for you (see "What this doesn't do").
+If MuseScore calls the `.musicxml` "corrupted," see the polyphony caveat
+below before assuming the file is broken.
+
 ## Setup
 
 Requires **Python 3.11** specifically — `basic-pitch` pulls in TensorFlow
