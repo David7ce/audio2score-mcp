@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.2.1 — 2026-08-20
+
+- **Corrected an overclaim**: v1.2.0 said scripting MuseScore's CLI is
+  "unreliable" without qualification. Actually confirmed sandbox-specific
+  - the crash/hang was tested from an agent's Bash tool with no normal
+    interactive desktop/GPU session attached; a user running the same
+  command from their own terminal may well have it work, since MuseScore's
+  `-o` export is a real, commonly-documented feature. Reworded in
+  README.md and CLAUDE.md to say so plainly, so a future reader doesn't
+  conclude MuseScore's CLI is broken in general.
+- **Added the confirmed Guitar Pro finding**: no CLI at all -
+  `GuitarPro.exe --help` ignores the flag and opens the full GUI instead
+  of printing help. Worse than MuseScore for automation, not equivalent.
+- **Added PDF → MIDI as a named two-step workflow**: Audiveris OMR export
+  → this project's own `score_to_midi.py`. Both pieces already existed
+  separately; this just states the chain explicitly instead of leaving the
+  reader to infer it.
+- Restructured README.md: merged "What this doesn't do" and the old
+  "Audio and PDF export" section into one tighter "Formats this connects
+  to" table, removed duplicated crash-forensics narrative (kept in
+  CLAUDE.md for future Claude sessions, trimmed to the essential fact for
+  README's human readers), gave the MuseScore voice-tag bug its own
+  heading instead of running on after the table.
+
 ## v1.2.0 — 2026-08-20
 
 - **Added `score_to_midi.py`**: MusicXML (or other music21-readable score)

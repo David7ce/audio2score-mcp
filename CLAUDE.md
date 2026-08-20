@@ -7,11 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Audio → MIDI ⇄ MusicXML pipeline, plus a MIDI → daw-mcp note-array bridge.
 Four independent conversion steps, each a real file on disk, plus an MCP
 server wrapping all four as tools. No audio *output* direction
-(score/MIDI → audio), no PDF input (needs OMR), no stem separation, no
-notation-app driving — see README.md's "What this doesn't do" /
-"Audio and PDF export" and ROADMAP.md's "Explicitly out of scope" for the
-full boundary list, and what to point to instead (MuseScore, Audiveris),
-before proposing that kind of feature.
+(score/MIDI → audio) and no PDF-reading code of its own (OMR is a
+different technology - Audiveris, already installed, does it and hands
+off cleanly to this project's `score_to_midi.py`). No stem separation, no
+driving MuseScore/Guitar Pro (they already read MIDI/MusicXML natively and
+export PDF/audio/tab themselves - not this project's job). See README.md's
+"What this doesn't do" / "Formats this connects to" and ROADMAP.md's
+"Explicitly out of scope" for the full boundary list before proposing that
+kind of feature.
 
 ## Setup
 
@@ -95,18 +98,29 @@ Don't try to patch this by injecting `<voice>` tags post-write - that's
 real logic this project deliberately doesn't carry (see "Keep new
 tools/scripts consistent with this shape" above).
 
-**Don't build a MuseScore-CLI-based tool in this repo.** Tested directly:
-`MuseScore4.exe -o out.wav in.mid` crashes (fails a network call, `503 Host
-requires authentication`) without `QT_QPA_PLATFORM=offscreen`, and hangs
-indefinitely with it set. It launches a full GUI session (D3D11 context,
-WASAPI, soundfont load) for a plain export - not a lightweight headless
-converter, and not reliably scriptable from an agent/CI context on this
-machine. Audio/PDF export via MuseScore stays a manual, documented step
-(README's "Audio and PDF export") - don't re-attempt automating it without
-new evidence it's fixed. Audiveris (OMR, `C:\Program Files\Audiveris\`),
-by contrast, has a genuine `-batch` CLI that responds cleanly - confirmed
-via `-help` - but building an OMR pipeline is still out of this project's
-scope; point users to it, don't wrap it.
+**Don't build a MuseScore-CLI-based tool in this repo - but the limitation
+is sandbox-specific, not MuseScore's.** Tested directly from an agent's
+Bash tool: `MuseScore4.exe -o out.wav in.mid` crashes (fails a network
+call, `503 Host requires authentication`) without
+`QT_QPA_PLATFORM=offscreen`, and hangs indefinitely with it set - it
+launches a full GUI session (D3D11 context, WASAPI, soundfont load) for a
+plain export, which breaks without a normal interactive desktop/GPU
+session attached. MuseScore's `-o` export is a real, commonly-used,
+documented feature elsewhere - a user running the same command from their
+own terminal (not an agent sandbox) may well have it work fine. Point
+users at manual/self-driven use (README's "Formats this connects to"), but
+don't claim it's broken outright, and don't re-attempt wrapping it in this
+repo's own automation without a different execution context to test from.
+
+**Guitar Pro has no CLI at all** - confirmed, not assumed:
+`GuitarPro.exe --help` ignores the flag and launches the full GUI instead
+of printing anything. No batch/automation path exists to point to, unlike
+MuseScore.
+
+Audiveris (OMR, `C:\Program Files\Audiveris\`), by contrast, has a genuine
+`-batch` CLI that responds cleanly - confirmed via `-help` - but building
+an OMR pipeline is still out of this project's scope; point users to it,
+don't wrap it.
 
 ## Testing
 

@@ -174,58 +174,33 @@ paths won't resolve:
 
 ## What this doesn't do
 
-- No score/MIDI → audio direction — needs a synth/soundfont, not this
-  project's job (see "Audio and PDF export" below for how to do it with
-  software you likely already have)
-- No PDF input (sheet-music image → notes) — needs OMR (Optical Music
-  Recognition), a different, unrelated ML problem from anything here (see
-  below)
+- No score/MIDI → audio direction, no PDF input — see "Formats this
+  connects to" below for what to use instead and why it doesn't belong here
 - No stem separation or multi-instrument splitting
-- Doesn't open or drive MuseScore/Guitar Pro/Sibelius — it produces `.musicxml`, you open it yourself
 - No automated test suite by design — verification is always a real run against real audio
 
-## Audio and PDF export (manual - not automated by this project)
+## Formats this connects to (not converted by this project)
 
-Two directions this project deliberately doesn't wrap in a script, with
-what to use instead. Both are things **other, already-capable software
-does better** than a thin Python wrapper could - see "What's here" above
-for why every tool in this project stays a two-line parse+write call.
+Once you have a `.mid`/`.musicxml`, **MuseScore Studio or Guitar Pro
+already open it natively and export to PDF/audio/tab themselves** - that's
+their job, not this pipeline's. Two directions on the *other* side (audio
+output, PDF input) also route through already-installed software rather
+than new code here:
 
-**MIDI/MusicXML → audio** (hear the score, not just read it): open the
-`.mid`/`.musicxml` in **MuseScore Studio** (or any notation app) and use
-its own audio export (File → Export → Wav/MP3/Ogg/Flac) - MuseScore ships
-a built-in synth and soundfont (`MS Basic.sf3`) for exactly this. A CLI
-form exists in principle (`MuseScore4.exe -o out.wav in.mid`) but **don't
-try to script it** - tested in this repo's own automation and it's
-unreliable outside an interactive desktop session: without
-`QT_QPA_PLATFORM=offscreen` it crashed after a failed network call
-(`503 Host requires authentication`, likely a telemetry check); with it
-set, it hung indefinitely. MuseScore 4 launches a full GUI session (D3D11
-graphics context, WASAPI audio driver, soundfont loading, network calls)
-even for a plain export, not a lightweight headless converter. Manual
-export in the GUI works fine - just don't expect to automate it from a
-script or CI job on this machine.
+| Direction | Use | Notes |
+|---|---|---|
+| MIDI/MusicXML → PDF, audio, tab | MuseScore Studio or Guitar Pro, opened normally | Not scriptable here - MuseScore's CLI (`-o out.pdf`) exists but needs a real interactive desktop session (fails headless/agent-driven); Guitar Pro has no CLI at all (confirmed - `GuitarPro.exe --help` just launches the GUI) |
+| PDF (scanned/typeset sheet music) → MusicXML | **Audiveris** (`C:\Program Files\Audiveris\Audiveris.exe`), OMR, confirmed working: `Audiveris.exe -batch -export -output "<folder>" "<input>.pdf"` | `-batch` skips its GUI, unlike MuseScore's this genuinely runs headless. Writes `.mxl` |
+| PDF → MIDI | Audiveris (above) → this project's `score_to_midi.py` | Two steps, both real: OMR to MusicXML, then symbolic MusicXML→MIDI |
 
-**PDF (sheet music image) → MIDI/MusicXML**: this needs OMR, a completely
-different technology from audio transcription (basic-pitch) or symbolic
-notation conversion (music21) - it's computer vision on a score image, not
-audio or MIDI processing. Not something to bolt onto this project. If you
-have **Audiveris** installed (open-source OMR, confirmed present on this
-machine at `C:\Program Files\Audiveris\Audiveris.exe`), its CLI is
-genuinely scriptable, unlike MuseScore's:
+OMR accuracy on real scanned sheet music varies a lot by source quality -
+treat Audiveris's output with at least as much suspicion as basic-pitch's
+audio transcription; check the intermediate `.musicxml` before trusting it.
 
-```bash
-Audiveris.exe -batch -export -output "<output-folder>" "<input>.pdf"
-```
+## Known issue: MuseScore can reject a transcribed `.musicxml` as "corrupted"
 
-`-batch` skips the GUI, `-export` writes `.mxl` (compressed MusicXML) into
-the output folder. From there, `score_to_midi.py` (this project) can take
-that `.mxl` straight to MIDI, continuing the same pipeline. OMR accuracy on
-real scanned sheet music varies a lot by source quality - treat its output
-with at least as much suspicion as basic-pitch's audio transcription.
-
-**Heavily polyphonic transcriptions can produce a `.musicxml` that MuseScore
-Studio refuses to open, calling it "corrupted."** Root cause: music21's own
+Heavily polyphonic transcriptions can produce a `.musicxml` that MuseScore
+Studio refuses to open, calling it "corrupted." Root cause: music21's own
 MusicXML writer omits the `<voice>` tag on some `<note>` elements when a
 piece needs many simultaneous voices (5+) - verified on a real 45-second
 recording that transcribed into dense, often-overlapping notes (a side

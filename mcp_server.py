@@ -9,7 +9,7 @@ from to_score import to_score
 from midi_to_notes import midi_to_notes as convert_midi_to_notes
 from score_to_midi import score_to_midi as convert_score_to_midi
 
-mcp = MCPServer("audio2score", version="1.2.0")
+mcp = MCPServer("audio2score", version="1.2.1")
 
 
 @mcp.tool()
