@@ -7,7 +7,7 @@ from mcp.server import MCPServer
 from transcribe import transcribe
 from to_score import to_score
 
-mcp = MCPServer("audio2score")
+mcp = MCPServer("audio2score", version="1.0.0")
 
 
 @mcp.tool()

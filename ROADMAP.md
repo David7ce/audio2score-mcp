@@ -9,25 +9,17 @@
   `midi_to_score`), registered in Claude Code's config as `audio2score`.
 - `README.md` covering setup, CLI usage, MCP usage, and the known
   retry/overwrite-guard caveat.
+- **v1.0.0** — first tagged release. No compiled artifacts here (unlike
+  `daw-mcp`'s Java jar + bundled JS), so a release is just a `VERSION`
+  file, a matching `version=` on the `MCPServer` instance, and a git tag —
+  anyone using it clones the repo and follows the README's setup steps.
 
 ## Near-term
 
-- **No release process exists yet.** Deliberately not building one until
-  its shape is decided — see open question below.
 - **README could use a worked example** — a full transcript of running
   both scripts (or both tools) against a real file, output included, so a
   new reader can tell what "working" looks like without running it
   themselves first.
-
-## Open question: what does a "release" mean for this project?
-
-Unlike `daw-mcp` (a sibling project with a compiled Java extension and a
-bundled JS server, packaged into a distributable zip via `scripts/release.sh`),
-this project has no compiled artifacts and no install step beyond a venv +
-`pip install`. A "release" here is likely much lighter — a git tag plus a
-version number, maybe a source archive excluding `venv/` — but the exact
-shape hasn't been decided. Resolve this before building a release script,
-not after.
 
 ## Workflow bridge to daw-mcp
 
