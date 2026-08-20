@@ -17,8 +17,9 @@ same two steps as tools Claude can call.
 - `transcribe.py` — audio file → MIDI, via Spotify's [basic-pitch](https://github.com/spotify/basic-pitch)
 - `to_score.py` — MIDI file → MusicXML, via [music21](https://www.music21.org/)
 - `score_to_midi.py` — MusicXML (or other music21-readable score) file → MIDI, via music21 (the reverse of `to_score.py`)
+- `score_to_pdf.py` — MIDI/MusicXML file → PDF, by wrapping MuseScore Studio's converter mode
 - `midi_to_notes.py` — MIDI file → JSON note array in daw-mcp's `batch_set_notes` format, via music21
-- `mcp_server.py` — MCP server wrapping all four as tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`, `midi_to_notes`)
+- `mcp_server.py` — MCP server wrapping all five as tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`, `score_to_pdf`, `midi_to_notes`)
 
 Each step is a separate, real artifact on disk — not a hidden intermediate.
 The pause between MIDI and notation is deliberate: automatic transcription
@@ -74,12 +75,15 @@ venv/Scripts/python.exe to_score.py "C:\path\to\song.mid"
 venv/Scripts/python.exe score_to_midi.py "C:\path\to\song.musicxml"
 # -> C:\path\to\song.mid  (the reverse direction - e.g. a downloaded/hand-written score)
 
+venv/Scripts/python.exe score_to_pdf.py "C:\path\to\song.mid"
+# -> C:\path\to\song.pdf  (via MuseScore's converter mode)
+
 venv/Scripts/python.exe midi_to_notes.py "C:\path\to\song.mid"
 # -> C:\path\to\song.notes.json  (daw-mcp's batch_set_notes format)
 ```
 
 Output always lands next to the input, same base filename, different
-extension. All four scripts **refuse to overwrite an existing output file** —
+extension. All five scripts **refuse to overwrite an existing output file** —
 delete or move it first if you want to re-run. Errors (missing input, a
 library failure) print a clear message to stderr and exit non-zero; nothing
 fails silently.
@@ -141,11 +145,12 @@ in one measure, not a second bug).
 Registered in Claude Code's config as `audio2score` — restart Claude Code
 after a fresh install for it to appear (MCP servers load at startup).
 
-Four tools, mirroring the four scripts exactly:
+Five tools, mirroring the five scripts exactly:
 
 - `transcribe_audio(audio_path)` → returns the `.mid` path
 - `midi_to_score(midi_path)` → returns the `.musicxml` path
 - `score_to_midi(score_path)` → returns the `.mid` path (reverse of `midi_to_score`)
+- `score_to_pdf(score_path)` → returns the `.pdf` path (via MuseScore's converter mode)
 - `midi_to_notes(midi_path)` → returns the `.notes.json` path (daw-mcp's `batch_set_notes` note-array format)
 
 Same behavior as the CLI underneath (same overwrite guard, same errors) —
@@ -174,28 +179,28 @@ paths won't resolve:
 
 ## What this doesn't do
 
-- No score/MIDI → audio direction, no PDF input — see "Formats this
-  connects to" below for what to use instead and why it doesn't belong here
+- No score/MIDI → audio direction — see "Formats this connects to" below
 - No stem separation or multi-instrument splitting
 - No automated test suite by design — verification is always a real run against real audio
 
-## Formats this connects to (not converted by this project)
+## Formats this connects to
 
-Once you have a `.mid`/`.musicxml`, **MuseScore Studio or Guitar Pro
-already open it natively and export to PDF/audio/tab themselves** - that's
-their job, not this pipeline's. Two directions on the *other* side (audio
-output, PDF input) also route through already-installed software rather
-than new code here:
+PDF input (sheet music → notes) and PDF output (score → rendered page) are
+both real and working, via already-installed software this project wraps
+or points to rather than reimplementing:
 
 | Direction | Use | Notes |
 |---|---|---|
-| MIDI/MusicXML → PDF, audio, tab | MuseScore Studio or Guitar Pro, opened normally | Not scriptable here - MuseScore's CLI (`-o out.pdf`) exists but needs a real interactive desktop session (fails headless/agent-driven); Guitar Pro has no CLI at all (confirmed - `GuitarPro.exe --help` just launches the GUI) |
-| PDF (scanned/typeset sheet music) → MusicXML | **Audiveris** (`C:\Program Files\Audiveris\Audiveris.exe`), OMR, confirmed working: `Audiveris.exe -batch -export -output "<folder>" "<input>.pdf"` | `-batch` skips its GUI, unlike MuseScore's this genuinely runs headless. Writes `.mxl` |
-| PDF → MIDI | Audiveris (above) → this project's `score_to_midi.py` | Two steps, both real: OMR to MusicXML, then symbolic MusicXML→MIDI |
+| MIDI/MusicXML → PDF | This project's `score_to_pdf.py`, wraps MuseScore's converter mode | Genuinely automatable - `MuseScore4.exe -j job.json` (a JSON job file, not `-o` directly) skips the GUI entirely. Confirmed working from native PowerShell/Python `subprocess`; plain `-o` from an agent's Bash tool is what failed in earlier testing, not MuseScore itself |
+| MIDI/MusicXML → audio | MuseScore Studio, opened normally (File → Export) | **Not automatable**, unlike PDF - tested the same `-j` converter-mode approach for audio (wav and mp3) and it still fails silently, even though PDF export via the identical mechanism works. Audio needs MuseScore's audio engine/soundfont pipeline, which is where the original GUI-mode crash came from too |
+| MIDI/MusicXML → tab, or anything in Guitar Pro | Guitar Pro, opened normally | No CLI exists at all (confirmed - `GuitarPro.exe --help` just launches the GUI) |
+| PDF (scanned/typeset sheet music) → MusicXML | **Audiveris** (`C:\Program Files\Audiveris\Audiveris.exe`): `Audiveris.exe -batch -export -output "<folder>" "<input>.pdf"` | `-batch` genuinely skips its GUI. Tested on 3 real PDFs: 2 clean one-page scores exported correctly (one with a minor time-signature warning); a 24-page guitar tab book hit real internal Audiveris crashes (`NullPointerException`/`IndexOutOfBoundsException` in its rhythm analysis) on several pages - OMR reliability drops fast on complex, multi-page, or tab-heavy input |
+| PDF → MIDI | Audiveris (above) → this project's `score_to_midi.py` | Two steps, both real and tested end-to-end on actual sheet music |
 
-OMR accuracy on real scanned sheet music varies a lot by source quality -
-treat Audiveris's output with at least as much suspicion as basic-pitch's
-audio transcription; check the intermediate `.musicxml` before trusting it.
+Treat OMR output with at least as much suspicion as basic-pitch's audio
+transcription - check the intermediate `.musicxml` before trusting it,
+and don't expect Audiveris to succeed on every PDF (see the tab-book
+failure above).
 
 ## Known issue: MuseScore can reject a transcribed `.musicxml` as "corrupted"
 

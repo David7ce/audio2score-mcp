@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Audio → MIDI ⇄ MusicXML pipeline, plus a MIDI → daw-mcp note-array bridge.
-Four independent conversion steps, each a real file on disk, plus an MCP
-server wrapping all four as tools. No audio *output* direction
-(score/MIDI → audio) and no PDF-reading code of its own (OMR is a
-different technology - Audiveris, already installed, does it and hands
-off cleanly to this project's `score_to_midi.py`). No stem separation, no
-driving MuseScore/Guitar Pro (they already read MIDI/MusicXML natively and
-export PDF/audio/tab themselves - not this project's job). See README.md's
+Audio → MIDI ⇄ MusicXML ⇄ PDF pipeline, plus a MIDI → daw-mcp note-array
+bridge. Five independent conversion steps, each a real file on disk, plus
+an MCP server wrapping all five as tools. No audio *output* direction
+(score/MIDI → audio - tried it, doesn't work reliably even via the
+mechanism that makes PDF export work) and no PDF-*reading* code of its own
+(OMR is a different technology - Audiveris, already installed, does it and
+hands off cleanly to this project's `score_to_midi.py`). No stem
+separation, no driving Guitar Pro (no CLI exists to drive). See README.md's
 "What this doesn't do" / "Formats this connects to" and ROADMAP.md's
 "Explicitly out of scope" for the full boundary list before proposing that
 kind of feature.
@@ -36,10 +36,11 @@ import `basic-pitch` needs.
 ## Commands
 
 ```bash
-venv/Scripts/python.exe transcribe.py "path\to\song.mp3"        # -> song.mid
-venv/Scripts/python.exe to_score.py "path\to\song.mid"          # -> song.musicxml
+venv/Scripts/python.exe transcribe.py "path\to\song.mp3"         # -> song.mid
+venv/Scripts/python.exe to_score.py "path\to\song.mid"           # -> song.musicxml
 venv/Scripts/python.exe score_to_midi.py "path\to\song.musicxml" # -> song.mid
-venv/Scripts/python.exe midi_to_notes.py "path\to\song.mid"     # -> song.notes.json
+venv/Scripts/python.exe score_to_pdf.py "path\to\song.mid"       # -> song.pdf
+venv/Scripts/python.exe midi_to_notes.py "path\to\song.mid"      # -> song.notes.json
 ```
 
 No lint/build/test commands — this project has none by design. Verification
@@ -47,7 +48,8 @@ is always a real run against real audio (see "Testing" below).
 
 ## Architecture
 
-Five files, each a thin layer over one library:
+Six files. Four are a thin layer over one Python library each; `score_to_pdf.py`
+is the one exception, wrapping an external executable instead:
 
 - `transcribe.py` — `transcribe(audio_path)`: calls basic-pitch's
   `predict_and_save`, then renames its fixed `<stem>_basic_pitch.mid` output
@@ -56,21 +58,23 @@ Five files, each a thin layer over one library:
   then `.write("musicxml")`.
 - `score_to_midi.py` — `score_to_midi(score_path)`: the reverse of
   `to_score.py` - `converter.parse` then `.write("midi")`. Symbolic-to-
-  symbolic, pure music21, no external process - unlike the audio/PDF
-  export directions below, this one stays inside this project because it
-  doesn't need a renderer or synth.
+  symbolic, pure music21, no external process.
+- `score_to_pdf.py` — `score_to_pdf(score_path)`: writes a temporary
+  MuseScore converter-mode job JSON (`[{"in": ..., "out": ...}]`) and runs
+  `MuseScore4.exe -j <job.json>` via `subprocess.run`. The one script here
+  that shells out - see the gotcha below for exactly why `-j` and not `-o`.
 - `midi_to_notes.py` — `midi_to_notes(midi_path)`: calls music21's
   `converter.parse`, flattens all parts/chords into one note list, and
   writes `[x, y, velocity, duration]` JSON — `x`/`duration` are music21
   `offset`/`quarterLength` (beats), which is exactly the unit daw-mcp's
   `batch_set_notes` expects, so no unit conversion is needed.
-- `mcp_server.py` — imports all four functions directly and exposes them as
+- `mcp_server.py` — imports all five functions directly and exposes them as
   MCP tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`,
-  `midi_to_notes`) with no added logic. Registered in Claude Code's config
-  under the name `audio2score`.
+  `score_to_pdf`, `midi_to_notes`) with no added logic. Registered in
+  Claude Code's config under the name `audio2score`.
 
-All four conversion functions share the same shape: validate input exists,
-call the library, refuse to overwrite an existing output file, return the
+All five conversion functions share the same shape: validate input exists,
+do the conversion, refuse to overwrite an existing output file, return the
 output `pathlib.Path`. `main()` in each script is just an argparse wrapper
 that catches `(FileNotFoundError, RuntimeError)` and prints to stderr with
 exit code 1. Keep new tools/scripts consistent with this shape rather than
@@ -98,29 +102,43 @@ Don't try to patch this by injecting `<voice>` tags post-write - that's
 real logic this project deliberately doesn't carry (see "Keep new
 tools/scripts consistent with this shape" above).
 
-**Don't build a MuseScore-CLI-based tool in this repo - but the limitation
-is sandbox-specific, not MuseScore's.** Tested directly from an agent's
-Bash tool: `MuseScore4.exe -o out.wav in.mid` crashes (fails a network
-call, `503 Host requires authentication`) without
-`QT_QPA_PLATFORM=offscreen`, and hangs indefinitely with it set - it
-launches a full GUI session (D3D11 context, WASAPI, soundfont load) for a
-plain export, which breaks without a normal interactive desktop/GPU
-session attached. MuseScore's `-o` export is a real, commonly-used,
-documented feature elsewhere - a user running the same command from their
-own terminal (not an agent sandbox) may well have it work fine. Point
-users at manual/self-driven use (README's "Formats this connects to"), but
-don't claim it's broken outright, and don't re-attempt wrapping it in this
-repo's own automation without a different execution context to test from.
+**`score_to_pdf.py` gotcha - use `-j job.json`, never `-o` directly.**
+Plain `MuseScore4.exe -o out.pdf in.mid` launches a full GUI session
+(D3D11 context, WASAPI, soundfont load) even for one export - from a
+non-interactive/agent context this is where it crashes (a failed network
+call, `503 Host requires authentication`, likely telemetry) or hangs even
+with `QT_QPA_PLATFORM=offscreen` set. `-j` ("converter mode") skips the
+GUI init entirely and is what `score_to_pdf.py` actually uses - confirmed
+reliable, repeatedly, from both native PowerShell and Python's
+`subprocess`. Run it from a real terminal (PowerShell/cmd), not Git
+Bash/MSYS - path handling differs and MuseScore's own docs
+(handbook.musescore.org/appendix/command-line-usage) assume a native
+Windows shell.
+
+**Audio export (wav/mp3) does *not* work the same way - tested, not
+assumed.** The identical `-j` job-file mechanism that makes PDF export
+reliable produces no output and no error for audio targets. PDF is pure
+layout rendering; audio needs MuseScore's audio engine/soundfont pipeline,
+which is exactly the subsystem that was crashing in GUI mode too. Don't
+build a `score_to_audio.py` assuming the PDF fix generalizes - it was
+tried and it doesn't. Audio export stays manual (MuseScore's own File →
+Export menu).
 
 **Guitar Pro has no CLI at all** - confirmed, not assumed:
 `GuitarPro.exe --help` ignores the flag and launches the full GUI instead
 of printing anything. No batch/automation path exists to point to, unlike
 MuseScore.
 
-Audiveris (OMR, `C:\Program Files\Audiveris\`), by contrast, has a genuine
-`-batch` CLI that responds cleanly - confirmed via `-help` - but building
-an OMR pipeline is still out of this project's scope; point users to it,
-don't wrap it.
+Audiveris (OMR, `C:\Program Files\Audiveris\`) has a genuine `-batch` CLI
+that works headless, confirmed on 3 real PDFs (`-batch -export -output
+"<folder>" "<input>.pdf"`, writes `.mxl`): 2 clean single-page scores
+exported correctly, a 24-page tab book hit real internal Audiveris crashes
+(`NullPointerException`/`IndexOutOfBoundsException` in its own rhythm
+analysis) on multiple pages. Building an OMR pipeline is still out of this
+project's scope - point users to Audiveris, then `score_to_midi.py` picks
+up its `.mxl` output - but don't assume Audiveris succeeds on everything;
+complex/multi-page/tab-heavy input is a real failure mode, not a
+hypothetical one.
 
 ## Testing
 

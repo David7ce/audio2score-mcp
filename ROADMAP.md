@@ -36,17 +36,13 @@ exact.
 
 ## Explicitly out of scope
 
-- Driving MuseScore/Guitar Pro/Sibelius, or rendering PDF/audio/tab
-  ourselves — once a `.mid`/`.musicxml` exists, those apps already open it
-  natively and export whatever's needed; duplicating that here is pointless.
-  Tried scripting MuseScore's CLI for audio/PDF export anyway - unreliable
-  outside a real interactive desktop session (crashes or hangs from an
-  agent/CI context specifically, not necessarily for a user running it
-  themselves). Guitar Pro has no CLI at all. See CLAUDE.md and README's
-  "Formats this connects to" for the full finding. Not revisiting the
-  scripting attempt unless that changes.
-- PDF (sheet music image) → MusicXML/MIDI isn't built *in this project* -
-  but it isn't a dead end either: Audiveris (already installed) does the
-  OMR step, and this project's own `score_to_midi.py` picks up from there.
-  Point to that chain, don't rebuild it.
+- Score/MIDI → **audio** — tested wrapping MuseScore's converter mode
+  (`-j job.json`, the same mechanism that makes PDF export reliable) for
+  wav/mp3 output; it produces nothing and no error. Audio needs
+  MuseScore's audio engine, a different subsystem than PDF's pure layout
+  rendering. Stays manual (MuseScore's own File → Export). Note: PDF
+  export in the *other* direction (MIDI/MusicXML → PDF) is **not** out of
+  scope any more - see CHANGELOG.md v1.3.0, it's `score_to_pdf.py` now.
+- Driving Guitar Pro — no CLI exists at all (confirmed:
+  `GuitarPro.exe --help` just opens the GUI), so there's nothing to wrap.
 - No stem separation, no multi-instrument splitting

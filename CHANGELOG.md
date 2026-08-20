@@ -1,5 +1,44 @@
 # Changelog
 
+## v1.3.0 — 2026-08-20
+
+- **Corrected v1.2.1's own correction**: MuseScore's CLI *is* reliably
+  automatable after all - the earlier fix ("it's sandbox-specific, try it
+  yourself") undersold it. The real issue was using `-o out.pdf` (which
+  always launches a full GUI session) and running it via Git Bash/MSYS.
+  Switching to `-j job.json` ("converter mode", per MuseScore's own docs
+  at handbook.musescore.org/appendix/command-line-usage - it explicitly
+  "avoids the graphical user interface") from native PowerShell fixed it
+  immediately: a real PDF, verified valid (`%PDF-1.4` header, correct page
+  count).
+- **Added `score_to_pdf.py`**: MIDI/MusicXML → PDF via MuseScore's
+  converter mode, `subprocess.run`, a temp job-file. The one script in
+  this project that shells out to an external executable rather than
+  calling a Python library - documented clearly as the exception. Wired
+  into `mcp_server.py` as a fifth tool. Verified via the real script (not
+  just a manual PowerShell command) on a real transcribed song.
+- **Tested audio export the same way and it does NOT work** - `-j`
+  targeting `.wav`/`.mp3` produces no output and no error, unlike PDF.
+  Audio needs MuseScore's audio engine/soundfont pipeline, the same
+  subsystem that crashed in GUI mode - PDF's pure layout rendering doesn't
+  touch it. Not building `score_to_audio.py`; documented as a real,
+  tested negative result, not an assumption.
+- **Ran the full pipeline on real files for the first time** (a real
+  MP3 the user provided, and real downloaded Ode to Joy sheet music PDFs,
+  not synthetic fixtures):
+  - `Curiosity__320kbps_.mp3` → `transcribe_audio` → `midi_to_score` →
+    `midi_to_notes` → `score_to_pdf`, all four steps producing real,
+    verified output.
+  - Two "Ode to Joy" PDFs → Audiveris OMR (`-batch -export`) → `.mxl` →
+    `score_to_midi.py` → `.mid`. Sanity-checked the result: recognizable
+    Ode to Joy melody (C-D-E-E-D-D-C-B...) with plausible left-hand chord
+    accompaniment (G3+D4, A2+D3) - genuine OMR success on real sheet
+    music, not just a clean synthetic test.
+  - A third PDF (a 24-page guitar tab book, "back-in-black.pdf") failed -
+    real internal Audiveris crashes on several pages. Kept as documented
+    evidence of OMR's real failure mode (complex/multi-page/tab input),
+    not glossed over.
+
 ## v1.2.1 — 2026-08-20
 
 - **Corrected an overclaim**: v1.2.0 said scripting MuseScore's CLI is

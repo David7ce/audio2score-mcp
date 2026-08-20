@@ -8,8 +8,9 @@ from transcribe import transcribe
 from to_score import to_score
 from midi_to_notes import midi_to_notes as convert_midi_to_notes
 from score_to_midi import score_to_midi as convert_score_to_midi
+from score_to_pdf import score_to_pdf as convert_score_to_pdf
 
-mcp = MCPServer("audio2score", version="1.2.1")
+mcp = MCPServer("audio2score", version="1.3.0")
 
 
 @mcp.tool()
@@ -34,6 +35,12 @@ def midi_to_notes(midi_path: str) -> str:
 def score_to_midi(score_path: str) -> str:
     """Convert a MusicXML (or other music21-readable score) file to MIDI. Returns the written .mid path."""
     return str(convert_score_to_midi(Path(score_path)))
+
+
+@mcp.tool()
+def score_to_pdf(score_path: str) -> str:
+    """Render a MIDI/MusicXML file to PDF via MuseScore. Returns the written .pdf path."""
+    return str(convert_score_to_pdf(Path(score_path)))
 
 
 if __name__ == "__main__":
