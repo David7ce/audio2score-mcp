@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Transcribe an audio file to MIDI using basic-pitch."""
 import argparse
+import contextlib
+import io
 import pathlib
 import sys
 
@@ -15,15 +17,20 @@ def transcribe(audio_path: pathlib.Path) -> pathlib.Path:
 
     output_dir = audio_path.parent
     try:
-        predict_and_save(
-            [str(audio_path)],
-            str(output_dir),
-            save_midi=True,
-            sonify_midi=False,
-            save_model_outputs=False,
-            save_notes=False,
-            model_or_model_path=ICASSP_2022_MODEL_PATH,
-        )
+        # basic-pitch's predict_and_save prints unconditionally (including
+        # emoji status lines) straight to stdout. That crashes on a
+        # non-UTF-8 Windows console, and would corrupt the MCP server's
+        # stdio JSON-RPC stream if it ran uncaptured - redirect it away.
+        with contextlib.redirect_stdout(io.StringIO()):
+            predict_and_save(
+                [str(audio_path)],
+                str(output_dir),
+                save_midi=True,
+                sonify_midi=False,
+                save_model_outputs=False,
+                save_notes=False,
+                model_or_model_path=ICASSP_2022_MODEL_PATH,
+            )
     except Exception as e:
         raise RuntimeError(f"basic-pitch failed on {audio_path}: {type(e).__name__}: {e}") from e
 

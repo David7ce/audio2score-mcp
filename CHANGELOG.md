@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.1.1 — 2026-08-20
+
+- **Fixed a real crash in `transcribe.py`**: basic-pitch's `predict_and_save`
+  prints unconditionally to stdout, including emoji status lines — this
+  crashes with `UnicodeEncodeError` on a non-UTF-8 Windows console, and (more
+  seriously) would corrupt `mcp_server.py`'s stdio JSON-RPC stream if a
+  `transcribe_audio` call let it through uncaptured. Fixed by redirecting
+  stdout with `contextlib.redirect_stdout` around the `predict_and_save`
+  call. Found and verified via a synthetic 3-note WAV run through the full
+  `transcribe.py` → `to_score.py` → `midi_to_notes.py` pipeline (correctly
+  detected C4/E4/G4) — first real reproduction of the crash, since v1.0.0's
+  verification MP3 apparently never hit this console-encoding path.
+
 ## v1.1.0 — 2026-08-20
 
 - Added `midi_to_notes.py`: MIDI file → JSON note array in daw-mcp's
