@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.1.3 — 2026-08-20
+
+- **Root-caused and documented a real user-reported bug**: MuseScore
+  Studio refused to open `o_tannenbaum.musicxml` (from the README's
+  worked example, real 45s recording), calling it "corrupted." Found the
+  cause: music21's MusicXML writer omits the `<voice>` tag on 38 of 610
+  `<note>` elements, only in this file's heavily polyphonic passages (up
+  to 5 simultaneous voices, from basic-pitch detecting harmonics/artifacts
+  on real audio) - the clean single-voice `alle_meine_entchen.musicxml`
+  from the same test batch has zero voice-tag issues. Confirmed this is
+  music21's writer, not `to_score.py`: explicitly calling
+  `score.makeNotation()` before `write()` doesn't fix it, and re-parsing
+  the file with music21 itself only warns and silently defaults those
+  notes to voice 1 - MuseScore is simply stricter about it. Documented as
+  a known limitation with a workaround ("Open anyway" loads it correctly)
+  in README.md and CLAUDE.md, rather than patching the XML post-write to
+  inject missing voice tags - that would be exactly the kind of added
+  logic this project's thin-wrapper design deliberately avoids.
+
 ## v1.1.2 — 2026-08-20
 
 - Added a worked example to `README.md`: a real run of all three scripts

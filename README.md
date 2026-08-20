@@ -153,3 +153,22 @@ paths won't resolve:
 - No stem separation or multi-instrument splitting
 - Doesn't open or drive MuseScore/Guitar Pro/Sibelius — it produces `.musicxml`, you open it yourself
 - No automated test suite by design — verification is always a real run against real audio
+
+**Heavily polyphonic transcriptions can produce a `.musicxml` that MuseScore
+Studio refuses to open, calling it "corrupted."** Root cause: music21's own
+MusicXML writer omits the `<voice>` tag on some `<note>` elements when a
+piece needs many simultaneous voices (5+) - verified on a real 45-second
+recording that transcribed into dense, often-overlapping notes (a side
+effect of basic-pitch picking up harmonics/artifacts on real audio, not a
+clean single melodic line). Confirmed this is music21's writer, not this
+project's code: `to_score.py` is a two-line `parse()` + `write()` call with
+no note/voice logic of its own, and explicitly calling `score.makeNotation()`
+before writing doesn't fix it either. Re-parsing the same file with music21
+itself only warns (`Cannot put in an element with a missing voice tag`) and
+recovers by defaulting those notes to voice 1 - MuseScore's importer is
+simply stricter and rejects outright instead of tolerating it.
+**Workaround: click "Open anyway"** - it loads fine, just with those specific
+notes in voice 1 instead of their originally-detected voice, a minor layout
+quirk, not lost data. Not seen on clean, low-polyphony input (a hand-authored
+melody MIDI transcribed and re-verified with zero voice-tag issues) - this is
+specific to messy, dense, real-audio-transcription output.

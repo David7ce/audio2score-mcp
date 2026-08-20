@@ -74,6 +74,19 @@ and will finish writing the `.mid` file regardless. A retry then hits the
 overwrite guard even though the first call looked like it failed — check
 whether the `.mid` already exists before treating that as a bug.
 
+**`to_score.py` gotcha:** on heavily polyphonic input (5+ simultaneous
+voices, typically from real-audio transcription noise rather than a clean
+melody), music21's MusicXML writer can omit the `<voice>` tag on some
+`<note>` elements. Confirmed as a music21 writer limitation, not something
+in this file's two-line parse+write logic - `score.makeNotation()` before
+write doesn't fix it, and music21 re-parses its own output fine (just
+warns and defaults those notes to voice 1). MuseScore Studio is stricter
+and refuses to open the file, calling it "corrupted" - "Open anyway" loads
+it correctly. See README.md's "What this doesn't do" for the full writeup.
+Don't try to patch this by injecting `<voice>` tags post-write - that's
+real logic this project deliberately doesn't carry (see "Keep new
+tools/scripts consistent with this shape" above).
+
 ## Testing
 
 No automated test suite by design (per README/ROADMAP). Verify changes by
