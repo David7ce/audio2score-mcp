@@ -4,11 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Audio → MIDI → MusicXML pipeline. Two independent conversion steps, each a
-real file on disk, plus an MCP server wrapping both as tools. No reverse
-direction, no stem separation, no notation-app driving — see README.md's
-"What this doesn't do" and ROADMAP.md's "Explicitly out of scope" for the
-full boundary list before proposing that kind of feature.
+Audio → MIDI → MusicXML pipeline, plus a MIDI → daw-mcp note-array bridge.
+Three independent conversion steps, each a real file on disk, plus an MCP
+server wrapping all three as tools. No reverse direction, no stem
+separation, no notation-app driving — see README.md's "What this doesn't
+do" and ROADMAP.md's "Explicitly out of scope" for the full boundary list
+before proposing that kind of feature.
 
 ## Setup
 
@@ -30,8 +31,9 @@ import `basic-pitch` needs.
 ## Commands
 
 ```bash
-venv/Scripts/python.exe transcribe.py "path\to\song.mp3"   # -> song.mid
-venv/Scripts/python.exe to_score.py "path\to\song.mid"     # -> song.musicxml
+venv/Scripts/python.exe transcribe.py "path\to\song.mp3"     # -> song.mid
+venv/Scripts/python.exe to_score.py "path\to\song.mid"       # -> song.musicxml
+venv/Scripts/python.exe midi_to_notes.py "path\to\song.mid"  # -> song.notes.json
 ```
 
 No lint/build/test commands — this project has none by design. Verification
@@ -56,7 +58,7 @@ Four files, each a thin layer over one library:
   added logic. Registered in Claude Code's config under the name
   `audio2score`.
 
-Both conversion functions share the same shape: validate input exists,
+All three conversion functions share the same shape: validate input exists,
 call the library, refuse to overwrite an existing output file, return the
 output `pathlib.Path`. `main()` in each script is just an argparse wrapper
 that catches `(FileNotFoundError, RuntimeError)` and prints to stderr with
@@ -76,7 +78,13 @@ whether the `.mid` already exists before treating that as a bug.
 
 No automated test suite by design (per README/ROADMAP). Verify changes by
 running the actual scripts (or MCP tools) against a real audio file and
-checking the output, not by writing unit tests around these two functions.
+checking the output, not by writing unit tests around these functions.
+
+## Releases
+
+VERSION file + matching `version=` on the `MCPServer` instance + a
+CHANGELOG.md entry + a git tag — no compiled artifacts, so that's the whole
+release. See CHANGELOG.md for the format of past entries.
 
 ## Relationship to daw-mcp
 
