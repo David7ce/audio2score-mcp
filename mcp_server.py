@@ -8,7 +8,7 @@ from transcribe import transcribe
 from to_score import to_score
 from score_to_notes import score_to_notes as convert_score_to_notes
 
-mcp = MCPServer("audio2score", version="2.0.0")
+mcp = MCPServer("audio2score", version="2.0.1")
 
 
 @mcp.tool()

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.0.1 — 2026-08-20
+
+- Added a "run only what your goal needs" table to README.md. Audited all
+  four files line-by-line for unused code first (imports, branches,
+  requirements.txt pins) - found nothing to remove, every remaining line
+  is load-bearing. The only real simplification left was documentation:
+  nothing stops running all three tools in a chain, but only one goal
+  (viewing scanned sheet music) ever needs zero of this project's own
+  tools, and PDF→daw-mcp never needs the MIDI step. Wasn't written down
+  anywhere before this.
+
 ## v2.0.0 — 2026-08-20
 
 - **Removed `score_to_midi.py` and `score_to_pdf.py`**, both added earlier

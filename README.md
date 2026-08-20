@@ -90,6 +90,21 @@ delete or move it first if you want to re-run. Errors (missing input, a
 library failure) print a clear message to stderr and exit non-zero; nothing
 fails silently.
 
+**Run only the tool(s) your actual goal needs - don't chain all three by
+default.** Each tool produces exactly one file; running more than you need
+just adds files nobody asked for.
+
+| Goal | Run | Files produced |
+|---|---|---|
+| View/edit a recording as notation | `transcribe_audio` → `midi_to_score` | `.mid`, `.musicxml` |
+| Get a recording's notes into daw-mcp | `transcribe_audio` → `score_to_notes` | `.mid`, `.notes.json` (skip `midi_to_score` - not needed for this goal) |
+| Get scanned/typeset sheet music into daw-mcp | Audiveris (external, see "Formats this connects to") → `score_to_notes` on the `.mxl` | `.mxl`, `.notes.json` (no MIDI step at all) |
+| View/edit scanned sheet music as notation | Audiveris only | `.mxl` - already MusicXML, open it directly, no tool here needed |
+
+`.mid` in the first two rows isn't really "output" so much as an
+unavoidable checkpoint - basic-pitch can only emit MIDI, and it's worth a
+look before trusting what comes after it (see "Known issue" below on why).
+
 ## Worked example
 
 A real run, not a hypothetical one. Input: a synthetic mono WAV, a C major
