@@ -8,6 +8,11 @@
   `mcp_server.py` as a third tool (`midi_to_notes`) — completes the
   workflow bridge to daw-mcp.
 - Added `CLAUDE.md` for future Claude Code instances working in this repo.
+- **Verified the full bridge live**: a synthetic MIDI (note + 3-note chord +
+  note, exercising the chord-flatten path) → `midi_to_notes.py` →
+  `batch_set_notes` against a running Bitwig instance → `batch_get_notes`
+  read back the identical 5-note array. Chord expansion, beat units, and
+  velocity all round-tripped exact. Test track/clip deleted afterward.
 
 ## v1.0.0 — 2026-08-20
 

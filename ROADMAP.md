@@ -33,7 +33,9 @@ music21 and writes them out already shaped as `batch_set_notes`' ultra-lean
 `[x, y, velocity, duration]` array. Still a manual last step — Claude (or
 you) reads the `.notes.json` file and passes its contents into
 `batch_set_notes` — but the format translation itself is no longer
-hand-done.
+hand-done. Verified live against a running Bitwig instance (see
+CHANGELOG.md v1.1.0) — chords, beat units, and velocity all round-trip
+exact.
 
 ## Explicitly out of scope
 
