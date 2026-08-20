@@ -6,45 +6,52 @@ MusicXML is the target because it's the "SVG of music notation" — an open,
 text-based format any notation app (MuseScore, Sibelius, Guitar Pro, Finale,
 Dorico) can open, edit, and re-export without owning the pipeline that
 produced it. This project only produces the `.mid` and `.musicxml` files;
-opening and editing them happens in whichever notation app you choose, by
-hand.
+opening, editing, and exporting to anything else (PDF, audio, tab) happens
+in whichever notation app you choose, by hand — see "Formats this connects
+to" below for why this project deliberately doesn't wrap that part.
 
 Two ways to run it: as plain CLI scripts, or as an MCP server exposing the
-same two steps as tools Claude can call.
+same steps as tools Claude can call.
 
 ## What's here
 
 - `transcribe.py` — audio file → MIDI, via Spotify's [basic-pitch](https://github.com/spotify/basic-pitch)
 - `to_score.py` — MIDI file → MusicXML, via [music21](https://www.music21.org/)
-- `score_to_midi.py` — MusicXML (or other music21-readable score) file → MIDI, via music21 (the reverse of `to_score.py`)
-- `score_to_pdf.py` — MIDI/MusicXML file → PDF, by wrapping MuseScore Studio's converter mode
-- `midi_to_notes.py` — MIDI file → JSON note array in daw-mcp's `batch_set_notes` format, via music21
-- `mcp_server.py` — MCP server wrapping all five as tools (`transcribe_audio`, `midi_to_score`, `score_to_midi`, `score_to_pdf`, `midi_to_notes`)
+- `score_to_notes.py` — a score file (MIDI, MusicXML, or anything [music21](https://www.music21.org/) can read) → JSON note array in daw-mcp's `batch_set_notes` format
+- `mcp_server.py` — MCP server wrapping all three as tools (`transcribe_audio`, `midi_to_score`, `score_to_notes`)
 
 Each step is a separate, real artifact on disk — not a hidden intermediate.
 The pause between MIDI and notation is deliberate: automatic transcription
 is lossy, so the raw MIDI is worth a look (or a manual fix) before it
 becomes a score.
 
+`score_to_notes.py` is intentionally format-agnostic, not MIDI-specific -
+`music21.converter.parse()` handles MIDI and MusicXML identically, so
+feeding it a `.mid` from `transcribe.py` or an `.mxl` from an external OMR
+tool (see "Formats this connects to") takes the same code path. There is
+no separate MusicXML→MIDI or MusicXML→PDF tool in this project - once a
+`.musicxml` exists, any notation app already opens and exports it, so
+building that here would just duplicate what's already installed.
+
 ## Where files go
 
 Recommended: drop input files in **`workspace/`** (repo-local, gitignored -
 see `.gitignore` - nothing placed here ever gets committed, inputs
-included). There's no hard requirement though - `audio_path`/`midi_path`
-can point anywhere. Every output lands **next to its input file**, same
-base name, different extension:
+included). There's no hard requirement though - any path works. Every
+output lands **next to its input file**, same base name, different
+extension:
 
 ```
 workspace/song.mp3          <- you put this here (any format basic-pitch/librosa reads: mp3, wav, ogg, flac...)
 workspace/song.mid          <- transcribe_audio writes this
 workspace/song.musicxml     <- midi_to_score writes this (open in MuseScore/Guitar Pro/Sibelius/Finale/Dorico)
-workspace/song.notes.json   <- midi_to_notes writes this (feed into daw-mcp's batch_set_notes)
+workspace/song.notes.json   <- score_to_notes writes this (feed into daw-mcp's batch_set_notes)
 ```
 
 To view: open the `.mid` or `.musicxml` directly in whatever notation app
-you have - nothing here launches one for you (see "What this doesn't do").
-If MuseScore calls the `.musicxml` "corrupted," see the polyphony caveat
-below before assuming the file is broken.
+you have - nothing here launches one for you. If MuseScore calls the
+`.musicxml` "corrupted," see the polyphony caveat below before assuming
+the file is broken.
 
 ## Setup
 
@@ -72,18 +79,13 @@ venv/Scripts/python.exe transcribe.py "C:\path\to\song.mp3"
 venv/Scripts/python.exe to_score.py "C:\path\to\song.mid"
 # -> C:\path\to\song.musicxml
 
-venv/Scripts/python.exe score_to_midi.py "C:\path\to\song.musicxml"
-# -> C:\path\to\song.mid  (the reverse direction - e.g. a downloaded/hand-written score)
-
-venv/Scripts/python.exe score_to_pdf.py "C:\path\to\song.mid"
-# -> C:\path\to\song.pdf  (via MuseScore's converter mode)
-
-venv/Scripts/python.exe midi_to_notes.py "C:\path\to\song.mid"
-# -> C:\path\to\song.notes.json  (daw-mcp's batch_set_notes format)
+venv/Scripts/python.exe score_to_notes.py "C:\path\to\song.mid"
+# -> C:\path\to\song.notes.json  (daw-mcp's batch_set_notes format - also
+#    takes a .musicxml/.mxl directly, e.g. from OMR, no separate step needed)
 ```
 
 Output always lands next to the input, same base filename, different
-extension. All five scripts **refuse to overwrite an existing output file** —
+extension. All three scripts **refuse to overwrite an existing output file** —
 delete or move it first if you want to re-run. Errors (missing input, a
 library failure) print a clear message to stderr and exit non-zero; nothing
 fails silently.
@@ -107,7 +109,7 @@ Wrote c_major_arpeggio.mid
 $ venv/Scripts/python.exe to_score.py c_major_arpeggio.mid
 Wrote c_major_arpeggio.musicxml
 
-$ venv/Scripts/python.exe midi_to_notes.py c_major_arpeggio.mid
+$ venv/Scripts/python.exe score_to_notes.py c_major_arpeggio.mid
 Wrote c_major_arpeggio.notes.json
 ```
 
@@ -145,13 +147,11 @@ in one measure, not a second bug).
 Registered in Claude Code's config as `audio2score` — restart Claude Code
 after a fresh install for it to appear (MCP servers load at startup).
 
-Five tools, mirroring the five scripts exactly:
+Three tools, mirroring the three scripts exactly:
 
 - `transcribe_audio(audio_path)` → returns the `.mid` path
 - `midi_to_score(midi_path)` → returns the `.musicxml` path
-- `score_to_midi(score_path)` → returns the `.mid` path (reverse of `midi_to_score`)
-- `score_to_pdf(score_path)` → returns the `.pdf` path (via MuseScore's converter mode)
-- `midi_to_notes(midi_path)` → returns the `.notes.json` path (daw-mcp's `batch_set_notes` note-array format)
+- `score_to_notes(score_path)` → returns the `.notes.json` path (daw-mcp's `batch_set_notes` note-array format; accepts MIDI or MusicXML)
 
 Same behavior as the CLI underneath (same overwrite guard, same errors) —
 the MCP server is a thin wrapper, not a different implementation.
@@ -179,23 +179,27 @@ paths won't resolve:
 
 ## What this doesn't do
 
-- No score/MIDI → audio direction — see "Formats this connects to" below
+- No score/MIDI → audio, PDF, or tab output, no MusicXML → MIDI conversion
+  either — see "Formats this connects to" below for why and what to use instead
 - No stem separation or multi-instrument splitting
 - No automated test suite by design — verification is always a real run against real audio
 
 ## Formats this connects to
 
-PDF input (sheet music → notes) and PDF output (score → rendered page) are
-both real and working, via already-installed software this project wraps
-or points to rather than reimplementing:
+Once a `.musicxml` exists, this project deliberately stops - every
+notation app already opens MusicXML natively and exports whatever's
+needed (PDF, audio, tab, MIDI) from its own menu. Building automated
+wrappers around those exports was tried and mostly reverted (see
+CHANGELOG.md v1.2.0 through v2.0.0 for the full back-and-forth) - the
+one direction still worth automating turned out to be none of them, once
+`score_to_notes.py` was confirmed to accept MusicXML directly with no
+separate conversion step.
 
 | Direction | Use | Notes |
 |---|---|---|
-| MIDI/MusicXML → PDF | This project's `score_to_pdf.py`, wraps MuseScore's converter mode | Genuinely automatable - `MuseScore4.exe -j job.json` (a JSON job file, not `-o` directly) skips the GUI entirely. Confirmed working from native PowerShell/Python `subprocess`; plain `-o` from an agent's Bash tool is what failed in earlier testing, not MuseScore itself |
-| MIDI/MusicXML → audio | MuseScore Studio, opened normally (File → Export) | **Not automatable**, unlike PDF - tested the same `-j` converter-mode approach for audio (wav and mp3) and it still fails silently, even though PDF export via the identical mechanism works. Audio needs MuseScore's audio engine/soundfont pipeline, which is where the original GUI-mode crash came from too |
-| MIDI/MusicXML → tab, or anything in Guitar Pro | Guitar Pro, opened normally | No CLI exists at all (confirmed - `GuitarPro.exe --help` just launches the GUI) |
+| MusicXML → PDF, audio, tab, MIDI | MuseScore Studio or Guitar Pro, opened normally | Not wrapped here on purpose - see above. (MuseScore's CLI converter mode, `-j job.json`, genuinely can automate PDF export reliably if you want it for your own scripting - just isn't built into this project) |
 | PDF (scanned/typeset sheet music) → MusicXML | **Audiveris** (`C:\Program Files\Audiveris\Audiveris.exe`): `Audiveris.exe -batch -export -output "<folder>" "<input>.pdf"` | `-batch` genuinely skips its GUI. Tested on 3 real PDFs: 2 clean one-page scores exported correctly (one with a minor time-signature warning); a 24-page guitar tab book hit real internal Audiveris crashes (`NullPointerException`/`IndexOutOfBoundsException` in its rhythm analysis) on several pages - OMR reliability drops fast on complex, multi-page, or tab-heavy input |
-| PDF → MIDI | Audiveris (above) → this project's `score_to_midi.py` | Two steps, both real and tested end-to-end on actual sheet music |
+| PDF → daw-mcp's note format | Audiveris (above) → this project's `score_to_notes.py`, directly on the `.mxl` | Two steps, both real and tested end-to-end on actual sheet music - no MIDI conversion needed in between |
 
 Treat OMR output with at least as much suspicion as basic-pitch's audio
 transcription - check the intermediate `.musicxml` before trusting it,

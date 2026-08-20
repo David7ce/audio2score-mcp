@@ -1,5 +1,39 @@
 # Changelog
 
+## v2.0.0 — 2026-08-20
+
+- **Removed `score_to_midi.py` and `score_to_pdf.py`**, both added earlier
+  today (v1.2.0, v1.3.0), after checking their actual necessity against
+  reality instead of assuming it: MusicXML is meant to be this project's
+  hub format ("the SVG of music notation," per the README's own framing) -
+  once it exists, notation apps already open and export it to anything
+  (PDF, audio, tab, MIDI) themselves. Two specific things proved this
+  wasn't hypothetical:
+  - `midi_to_notes.py` (renamed `score_to_notes.py` in this release) was
+    checked and confirmed **already format-agnostic** - `music21.converter.parse()`
+    handles `.musicxml`/`.mxl` identically to `.mid`, verified by feeding
+    it Audiveris OMR output directly with zero code changes. This removed
+    `score_to_midi.py`'s entire reason for existing (it was built to
+    bridge OMR output into a MIDI shape the notes-bridge supposedly
+    needed - it never needed that shape at all).
+  - `score_to_pdf.py` was genuinely reliable (see v1.3.0), but its only
+    edge over "open MuseScore yourself" was skipping a GUI click in an
+    unattended flow - not enough to justify carrying an external ~500MB
+    GUI-app process dependency, once minimalism was the explicit goal.
+  **Breaking change** (major version bump): `score_to_midi`/`score_to_pdf`
+  MCP tools no longer exist, and `midi_to_notes` was renamed to
+  `score_to_notes`.
+- **Renamed `midi_to_notes.py` → `score_to_notes.py`** (function too:
+  `midi_to_notes` → `score_to_notes`) to match what the code already did -
+  the old name actively hid the redundancy above by implying a MIDI-only
+  tool that would need a MusicXML→MIDI hop first. Verified after rename:
+  ran directly on a real `.mxl` (OMR output), correct `.notes.json`
+  produced, identical to before the rename.
+- Rewrote README.md/CLAUDE.md/ROADMAP.md around the simplified 3-tool
+  shape, keeping the MuseScore `-j`/Audiveris technical findings from the
+  built-then-removed tools as reference material (CLAUDE.md's "History"
+  section) rather than deleting hard-won knowledge along with the code.
+
 ## v1.3.0 — 2026-08-20
 
 - **Corrected v1.2.1's own correction**: MuseScore's CLI *is* reliably

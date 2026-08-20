@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert a MIDI file to daw-mcp's batch_set_notes note-array format."""
+"""Convert a score file (MIDI, MusicXML, or anything music21 can read) to daw-mcp's batch_set_notes note-array format."""
 import argparse
 import json
 import pathlib
@@ -8,19 +8,23 @@ import sys
 from music21 import converter
 
 
-def midi_to_notes(midi_path: pathlib.Path) -> pathlib.Path:
-    """Parse midi_path and write its notes as [x, y, velocity, duration] JSON, return the output path.
+def score_to_notes(score_path: pathlib.Path) -> pathlib.Path:
+    """Parse score_path and write its notes as [x, y, velocity, duration] JSON, return the output path.
+
+    Format-agnostic - music21's converter.parse handles MIDI, MusicXML,
+    and its other supported formats identically here, so this works on a
+    transcribed .mid or an OMR-derived .mxl with no distinction.
 
     x/duration are beat positions (music21 quarterLength), matching
     daw-mcp's batch_set_notes ultra-lean note format exactly.
     """
-    if not midi_path.is_file():
-        raise FileNotFoundError(f"MIDI file not found: {midi_path}")
+    if not score_path.is_file():
+        raise FileNotFoundError(f"Score file not found: {score_path}")
 
     try:
-        score = converter.parse(str(midi_path))
+        score = converter.parse(str(score_path))
     except Exception as e:
-        raise RuntimeError(f"music21 failed to parse {midi_path}: {e}") from e
+        raise RuntimeError(f"music21 failed to parse {score_path}: {e}") from e
 
     notes = []
     for el in score.flatten().notes:
@@ -35,7 +39,7 @@ def midi_to_notes(midi_path: pathlib.Path) -> pathlib.Path:
             ])
     notes.sort(key=lambda n: n[0])
 
-    target = midi_path.with_suffix(".notes.json")
+    target = score_path.with_suffix(".notes.json")
     if target.exists():
         raise RuntimeError(f"{target} already exists; move or delete it first")
     target.write_text(json.dumps(notes))
@@ -43,12 +47,12 @@ def midi_to_notes(midi_path: pathlib.Path) -> pathlib.Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert a MIDI file to a batch_set_notes note array.")
-    parser.add_argument("midi_path", type=pathlib.Path, help="Path to the input MIDI file")
+    parser = argparse.ArgumentParser(description="Convert a score file to a batch_set_notes note array.")
+    parser.add_argument("score_path", type=pathlib.Path, help="Path to the input score file (.mid, .musicxml, .mxl)")
     args = parser.parse_args()
 
     try:
-        output_path = midi_to_notes(args.midi_path)
+        output_path = score_to_notes(args.score_path)
     except (FileNotFoundError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

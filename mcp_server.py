@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""MCP server wrapping transcribe.py and to_score.py as tools."""
+"""MCP server wrapping transcribe.py, to_score.py, and score_to_notes.py as tools."""
 from pathlib import Path
 
 from mcp.server import MCPServer
 
 from transcribe import transcribe
 from to_score import to_score
-from midi_to_notes import midi_to_notes as convert_midi_to_notes
-from score_to_midi import score_to_midi as convert_score_to_midi
-from score_to_pdf import score_to_pdf as convert_score_to_pdf
+from score_to_notes import score_to_notes as convert_score_to_notes
 
-mcp = MCPServer("audio2score", version="1.3.0")
+mcp = MCPServer("audio2score", version="2.0.0")
 
 
 @mcp.tool()
@@ -26,21 +24,9 @@ def midi_to_score(midi_path: str) -> str:
 
 
 @mcp.tool()
-def midi_to_notes(midi_path: str) -> str:
-    """Convert a MIDI file to daw-mcp's batch_set_notes note-array JSON. Returns the written .notes.json path."""
-    return str(convert_midi_to_notes(Path(midi_path)))
-
-
-@mcp.tool()
-def score_to_midi(score_path: str) -> str:
-    """Convert a MusicXML (or other music21-readable score) file to MIDI. Returns the written .mid path."""
-    return str(convert_score_to_midi(Path(score_path)))
-
-
-@mcp.tool()
-def score_to_pdf(score_path: str) -> str:
-    """Render a MIDI/MusicXML file to PDF via MuseScore. Returns the written .pdf path."""
-    return str(convert_score_to_pdf(Path(score_path)))
+def score_to_notes(score_path: str) -> str:
+    """Convert a score file (MIDI, MusicXML, or anything music21 can read) to daw-mcp's batch_set_notes note-array JSON. Returns the written .notes.json path."""
+    return str(convert_score_to_notes(Path(score_path)))
 
 
 if __name__ == "__main__":
