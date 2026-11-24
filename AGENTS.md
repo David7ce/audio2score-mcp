@@ -157,7 +157,7 @@ attempt are still true and worth knowing first:**
 
 ## Testing
 
-No automated test suite by design (per README/ROADMAP). Verify changes by
+No automated test suite by design (per README). Verify changes by
 running the actual scripts (or MCP tools) against a real audio file and
 checking the output, not by writing unit tests around these functions.
 
